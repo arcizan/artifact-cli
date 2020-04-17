@@ -1,5 +1,6 @@
 import logging
 import re
+import sys
 import boto3
 from botocore.exceptions import ClientError
 from .basedriver import BaseDriver
@@ -27,6 +28,7 @@ class S3Driver(BaseDriver):
             aws_secret_access_key=self.aws_secret_key,
             region_name=self.region)
         self.bucket = self.session.resource('s3').Bucket(self.bucket_name)
+        self.transfer_config = boto3.s3.transfer.TransferConfig(multipart_threshold=sys.maxsize)
 
     def index_path(self, artifact_id):
         return '%s%s.json' % (self.index_prefix, artifact_id)
@@ -80,7 +82,7 @@ class S3Driver(BaseDriver):
         :return None
         """
         with ProgressBar():
-            self.bucket.Object(remote_path).upload_file(Filename=local_path)
+            self.bucket.Object(remote_path).upload_file(Filename=local_path, Config=self.transfer_config)
 
         remote_md5 = self.bucket.Object(remote_path).e_tag.strip('"')
         assert md5 is None or md5 == remote_md5, \
